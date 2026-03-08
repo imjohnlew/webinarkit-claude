@@ -41,6 +41,31 @@ const navItems = [
 
 function NavItem({ item, collapsed, badge }) {
   const Icon = item.icon
+
+  // External / new-tab link (e.g. Admin Inbox standalone page)
+  if (item.target) {
+    return (
+      <a
+        href={item.to}
+        target={item.target}
+        rel="noopener noreferrer"
+        className={clsx(
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+          'text-slate-400 hover:bg-white/6 hover:text-slate-200',
+          collapsed && 'justify-center'
+        )}
+      >
+        <Icon className="w-5 h-5 shrink-0" />
+        {!collapsed && <span className="flex-1">{item.label}</span>}
+        {!collapsed && badge != null && badge > 0 && (
+          <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center">
+            {badge}
+          </span>
+        )}
+      </a>
+    )
+  }
+
   return (
     <NavLink
       to={item.to}
@@ -164,14 +189,14 @@ export function Layout() {
               </p>
               <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
               <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/live-room?tab=inbox' }}     collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }     collapsed={collapsed} badge={inboxUnread} />
             </div>
           )}
           {collapsed && (
             <>
               <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
               <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/live-room?tab=inbox' }}     collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }     collapsed={collapsed} badge={inboxUnread} />
             </>
           )}
 

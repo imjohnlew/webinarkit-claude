@@ -84,6 +84,7 @@ const SEED = {
     { id: 'ar-4', webinar_id: 'webinar-4', min_count:  30, max_count:  90 },
   ],
   inbox_messages: [],
+  admin_replies: [],
   chats: [
     { id: 'cm-1',  webinar_id: 'webinar-1', time_seconds: 8,   name: 'Sarah K.',      message: 'So excited for this! 🎉' },
     { id: 'cm-2',  webinar_id: 'webinar-1', time_seconds: 22,  name: 'Mike Johnson',  message: 'Just joined, can\'t wait!' },
@@ -455,6 +456,36 @@ const mock = {
 
   getInboxUnreadCount() {
     return (getStore().inbox_messages || []).filter(m => !m.read).length
+  },
+
+  // ── Admin replies (host → attendee) ─────────────────────────────────────────
+  pushAdminReply(inboxMessageId, webinarId, message) {
+    const item = {
+      id: uuid(),
+      inbox_message_id: inboxMessageId,
+      webinar_id: webinarId,
+      message,
+      sent_at: new Date().toISOString(),
+    }
+    mutate(store => {
+      if (!store.admin_replies) store.admin_replies = []
+      store.admin_replies.push(item)
+    })
+    return item
+  },
+
+  // Returns replies for a set of inbox message IDs (used by WatchRoom to poll)
+  listAdminRepliesForMessages(inboxMessageIds) {
+    return (getStore().admin_replies || [])
+      .filter(r => inboxMessageIds.includes(r.inbox_message_id))
+      .sort((a, b) => a.sent_at.localeCompare(b.sent_at))
+  },
+
+  // Returns all replies, optionally filtered by webinar (used by AdminInbox)
+  listAdminReplies(webinarId) {
+    const all = getStore().admin_replies || []
+    return (webinarId ? all.filter(r => r.webinar_id === webinarId) : all)
+      .sort((a, b) => a.sent_at.localeCompare(b.sent_at))
   },
 
   upsertNotification(webinarId, type, data) {

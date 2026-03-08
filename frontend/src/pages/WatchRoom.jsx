@@ -71,23 +71,30 @@ function ToolBtn({ icon: Icon, label, onClick, active, danger, disabled, badge }
 }
 
 // ── Chat message (light theme) ────────────────────────────────────────────────
-function ChatMsg({ msg, isNew, isYou }) {
-  const avatarColor = isYou ? '#0E72ED' : getAvatarColor(msg.name)
+function ChatMsg({ msg, isNew, isYou, isHost }) {
+  const avatarColor = isHost ? '#0E72ED' : isYou ? '#0E72ED' : getAvatarColor(msg.name)
   return (
-    <div className={clsx('px-4 py-2.5 hover:bg-[#F7F7F7] transition-colors', isNew && 'animate-fade-slide-up')}>
+    <div className={clsx(
+      'px-4 py-2.5 transition-colors',
+      isHost  ? 'bg-[#EBF5FF] hover:bg-[#dbeeff]' : 'hover:bg-[#F7F7F7]',
+      isNew   && 'animate-fade-slide-up'
+    )}>
       <div className="flex items-start gap-2.5">
         <div
           className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-[9px] font-black"
           style={{ background: avatarColor }}
         >
-          {initials(isYou ? 'You' : msg.name)}
+          {initials(isHost ? 'JY' : isYou ? 'You' : msg.name)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="text-[12px] font-semibold text-[#333]">
-              {isYou ? 'You' : msg.name}
+            <span className={clsx('text-[12px] font-semibold', isHost ? 'text-[#0E72ED]' : 'text-[#333]')}>
+              {isHost ? msg.name : isYou ? 'You' : msg.name}
             </span>
-            <span className="text-[11px] text-[#999]">to Everyone</span>
+            {isHost
+              ? <span className="text-[9px] font-bold text-[#0E72ED] bg-[#CCE4FF] px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none">Host</span>
+              : <span className="text-[11px] text-[#999]">to Everyone</span>
+            }
           </div>
           <p className="text-[13px] text-[#555] leading-snug break-words">{msg.message}</p>
         </div>
@@ -99,8 +106,9 @@ function ChatMsg({ msg, isNew, isYou }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WatchRoom() {
   const { webinarId } = useParams()
-  const videoRef   = useRef(null)
-  const chatBottom = useRef(null)
+  const videoRef       = useRef(null)
+  const chatBottom     = useRef(null)
+  const userMsgIdsRef  = useRef([])   // tracks inbox IDs of messages this attendee sent
 
   // ── IMPORTANT: ALL hooks must be declared before any conditional return ────
   // forceLive toggles the waiting room gate (dev-only bypass)
@@ -120,7 +128,8 @@ export default function WatchRoom() {
   const [userMsgs,    setUserMsgs]    = useState([])
   const [chatOpen,    setChatOpen]    = useState(false)
   const [elapsedStr,  setElapsedStr]  = useState('00:00:00')
-  const [reactions,   setReactions]   = useState([])
+  const [reactions,     setReactions]     = useState([])
+  const [adminReplies,  setAdminReplies]  = useState([])
   const elapsedSecs = useRef(0)
 
   // Session elapsed timer
@@ -152,7 +161,17 @@ export default function WatchRoom() {
   // Auto-scroll chat
   useEffect(() => {
     chatBottom.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [visibleMsgs, userMsgs])
+  }, [visibleMsgs, userMsgs, adminReplies])
+
+  // Poll for admin replies to messages this attendee sent
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (userMsgIdsRef.current.length) {
+        setAdminReplies(mock.listAdminRepliesForMessages(userMsgIdsRef.current))
+      }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [webinarId])
 
   // ── Waiting room gate (computed after all hooks) ───────────────────────────
   // In prod: purely time-based. In dev: Force Start button overrides.
@@ -205,9 +224,11 @@ export default function WatchRoom() {
     if (!userMsg.trim()) return
     const msg = userMsg.trim()
     // Save to admin-only inbox — NOT visible to other attendees
-    mock.pushInboxMessage(webinarId, 'Attendee', msg)
-    // Show privately to sender only
-    setUserMsgs(prev => [...prev, { id: `u-${Date.now()}`, name: 'You', message: msg, isYou: true }])
+    const stored = mock.pushInboxMessage(webinarId, 'Attendee', msg)
+    // Track the inbox ID so we can poll for admin replies
+    userMsgIdsRef.current = [...userMsgIdsRef.current, stored.id]
+    // Show privately to sender only, tagged with inboxId for reply correlation
+    setUserMsgs(prev => [...prev, { id: `u-${Date.now()}`, name: 'You', message: msg, isYou: true, inboxId: stored.id }])
     setUserMsg('')
   }
 
@@ -373,7 +394,20 @@ export default function WatchRoom() {
                 <ChatMsg key={msg.id} msg={msg} isNew={newMsgIds.has(msg.id)} />
               ))}
               {userMsgs.map(msg => (
-                <ChatMsg key={msg.id} msg={msg} isYou />
+                <div key={msg.id}>
+                  <ChatMsg msg={msg} isYou />
+                  {/* Show host replies to this specific message */}
+                  {adminReplies
+                    .filter(r => r.inbox_message_id === msg.inboxId)
+                    .map(r => (
+                      <ChatMsg
+                        key={r.id}
+                        msg={{ name: 'Jackson Yew (Host)', message: r.message }}
+                        isHost
+                      />
+                    ))
+                  }
+                </div>
               ))}
               <div ref={chatBottom} />
             </div>

@@ -7,6 +7,7 @@ import WebinarDetail from './pages/WebinarDetail'
 import Analytics from './pages/Analytics'
 import LiveRoom from './pages/LiveRoom'
 import WatchRoom from './pages/WatchRoom'
+import AdminInbox from './pages/AdminInbox'
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('auth_token')
@@ -35,6 +36,8 @@ export default function App() {
       </Route>
       {/* Public watch room — no auth required */}
       <Route path="/watch/:webinarId" element={<WatchRoom />} />
+      {/* Admin inbox — standalone full-page, auth required */}
+      <Route path="/admin-inbox" element={<RequireAuth><AdminInbox /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
