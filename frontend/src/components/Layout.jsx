@@ -16,6 +16,8 @@ import {
   MessageSquare,
   Users,
   Inbox,
+  Monitor,
+  Clock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import mock from '../api/mockStore'
@@ -185,18 +187,20 @@ export function Layout() {
           {!collapsed && (
             <div className="pt-4 mt-4 border-t border-white/8">
               <p className="px-3 text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                Live Room
+                Rooms
               </p>
-              <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
-              <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox' }}    collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Room',      icon: Radio,    to: '/live-room' }}                                  collapsed={collapsed} />
+              <NavItem item={{ label: 'Admin Inbox',    icon: Inbox,    to: '/admin-inbox' }}                                collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Attendee Room',  icon: Monitor,  to: '/watch/webinar-2', target: '_blank' }}          collapsed={collapsed} />
+              <NavItem item={{ label: 'Waiting Room',   icon: Clock,    to: '/watch/webinar-1', target: '_blank' }}          collapsed={collapsed} />
             </div>
           )}
           {collapsed && (
             <>
-              <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
-              <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox' }}    collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Room',      icon: Radio,    to: '/live-room' }}                                  collapsed={collapsed} />
+              <NavItem item={{ label: 'Admin Inbox',    icon: Inbox,    to: '/admin-inbox' }}                                collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Attendee Room',  icon: Monitor,  to: '/watch/webinar-2', target: '_blank' }}          collapsed={collapsed} />
+              <NavItem item={{ label: 'Waiting Room',   icon: Clock,    to: '/watch/webinar-1', target: '_blank' }}          collapsed={collapsed} />
             </>
           )}
 
