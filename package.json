@@ -1,0 +1,22 @@
+{
+  "name": "webinarkit-clone",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/jwt": "^7.2.4",
+    "@fastify/multipart": "^7.7.3",
+    "@supabase/supabase-js": "^2.46.2",
+    "fastify": "^4.28.0",
+    "luxon": "^3.5.0",
+    "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4"
+  }
+}
