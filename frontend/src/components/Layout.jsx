@@ -189,14 +189,14 @@ export function Layout() {
               </p>
               <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
               <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }     collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }}    collapsed={collapsed} badge={inboxUnread} />
             </div>
           )}
           {collapsed && (
             <>
               <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
               <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }     collapsed={collapsed} badge={inboxUnread} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/admin-inbox', target: '_blank' }}    collapsed={collapsed} badge={inboxUnread} />
             </>
           )}
 
