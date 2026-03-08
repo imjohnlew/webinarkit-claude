@@ -140,11 +140,11 @@ export default function AdminInbox() {
     setDrafts(d => ({ ...d, [msgId]: val }))
   }
 
-  function handleSendReply(e, msgId, webinarId) {
+  function handleSendReply(e, msgId, webinarId, senderName) {
     e.preventDefault()
     const text = (drafts[msgId] || '').trim()
     if (!text) return
-    mock.pushAdminReply(msgId, webinarId, text)
+    mock.pushAdminReply(msgId, webinarId, text, senderName)
     setDrafts(d => ({ ...d, [msgId]: '' }))
     setReplies(mock.listAdminReplies())
   }
@@ -158,8 +158,8 @@ export default function AdminInbox() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden"
-      style={{ background: '#F3F4F6', fontFamily: '"Lato", system-ui, sans-serif' }}
+      className="flex flex-col overflow-hidden"
+      style={{ height: 'calc(100vh - 64px)', background: '#F3F4F6', fontFamily: '"Lato", system-ui, sans-serif' }}
     >
       {/* ── HEADER ────────────────────────────────────────────────────────────── */}
       <div
@@ -262,7 +262,7 @@ export default function AdminInbox() {
                   replies={getRepliesFor(msg.id)}
                   draft={drafts[msg.id] || ''}
                   onDraftChange={val => handleDraftChange(msg.id, val)}
-                  onSend={e => handleSendReply(e, msg.id, msg.webinar_id)}
+                  onSend={e => handleSendReply(e, msg.id, msg.webinar_id, msg.sender)}
                   webinarName={getWebinarName(msg.webinar_id)}
                 />
               )

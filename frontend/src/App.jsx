@@ -33,11 +33,10 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="analytics/:webinarId" element={<Analytics />} />
         <Route path="live-room" element={<LiveRoom />} />
+        <Route path="admin-inbox" element={<AdminInbox />} />
       </Route>
       {/* Public watch room — no auth required */}
       <Route path="/watch/:webinarId" element={<WatchRoom />} />
-      {/* Admin inbox — standalone full-page, auth required */}
-      <Route path="/admin-inbox" element={<RequireAuth><AdminInbox /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

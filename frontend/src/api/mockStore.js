@@ -459,12 +459,13 @@ const mock = {
   },
 
   // ── Admin replies (host → attendee) ─────────────────────────────────────────
-  pushAdminReply(inboxMessageId, webinarId, message) {
+  pushAdminReply(inboxMessageId, webinarId, message, attendeeName) {
     const item = {
       id: uuid(),
       inbox_message_id: inboxMessageId,
       webinar_id: webinarId,
       message,
+      attendee_name: attendeeName || null,
       sent_at: new Date().toISOString(),
     }
     mutate(store => {

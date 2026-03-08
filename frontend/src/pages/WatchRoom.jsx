@@ -402,7 +402,7 @@ export default function WatchRoom() {
                     .map(r => (
                       <ChatMsg
                         key={r.id}
-                        msg={{ name: 'Jackson Yew (Host)', message: r.message }}
+                        msg={{ name: 'Jackson Yew (Host)', message: r.attendee_name ? `@${r.attendee_name} ${r.message}` : r.message }}
                         isHost
                       />
                     ))
