@@ -13,6 +13,8 @@ import {
   Bell,
   HelpCircle,
   Zap,
+  MessageSquare,
+  Users,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -137,6 +139,29 @@ export function Layout() {
           {navItems.map((item) => (
             <NavItem key={item.to} item={item} collapsed={collapsed} />
           ))}
+
+          {/* Live Room section */}
+          {!collapsed && (
+            <div className="pt-4 mt-4 border-t border-white/8">
+              <p className="px-3 text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                Live Room
+              </p>
+              <NavItem
+                item={{ label: 'Replay Chat', icon: MessageSquare, to: '/live-room?tab=chat' }}
+                collapsed={collapsed}
+              />
+              <NavItem
+                item={{ label: 'Attendee Count', icon: Users, to: '/live-room?tab=attendees' }}
+                collapsed={collapsed}
+              />
+            </div>
+          )}
+          {collapsed && (
+            <>
+              <NavItem item={{ label: 'Replay Chat', icon: MessageSquare, to: '/live-room?tab=chat' }} collapsed={collapsed} />
+              <NavItem item={{ label: 'Attendee Count', icon: Users, to: '/live-room?tab=attendees' }} collapsed={collapsed} />
+            </>
+          )}
 
           {!collapsed && (
             <div className="pt-4 mt-4 border-t border-white/8">

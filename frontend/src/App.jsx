@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import WebinarsList from './pages/WebinarsList'
 import WebinarDetail from './pages/WebinarDetail'
 import Analytics from './pages/Analytics'
+import LiveRoom from './pages/LiveRoom'
 import WatchRoom from './pages/WatchRoom'
 
 function RequireAuth({ children }) {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="webinars/:webinarId" element={<WebinarDetail />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="analytics/:webinarId" element={<Analytics />} />
+        <Route path="live-room" element={<LiveRoom />} />
       </Route>
       {/* Public watch room — no auth required */}
       <Route path="/watch/:webinarId" element={<WatchRoom />} />

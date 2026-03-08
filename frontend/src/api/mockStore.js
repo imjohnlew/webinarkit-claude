@@ -77,6 +77,12 @@ const SEED = {
     { id: 'reg-4', webinar_id: 'webinar-1', attended: true,  watch_percentage: 100, clicked_offer: true,  viewed_replay: false },
     { id: 'reg-5', webinar_id: 'webinar-2', attended: true,  watch_percentage: 60,  clicked_offer: false, viewed_replay: true  },
   ],
+  attendee_ranges: [
+    { id: 'ar-1', webinar_id: 'webinar-1', min_count: 120, max_count: 280 },
+    { id: 'ar-2', webinar_id: 'webinar-2', min_count:  80, max_count: 160 },
+    { id: 'ar-3', webinar_id: 'webinar-3', min_count:  50, max_count: 130 },
+    { id: 'ar-4', webinar_id: 'webinar-4', min_count:  30, max_count:  90 },
+  ],
   chats: [
     { id: 'cm-1',  webinar_id: 'webinar-1', time_seconds: 8,   name: 'Sarah K.',      message: 'So excited for this! 🎉' },
     { id: 'cm-2',  webinar_id: 'webinar-1', time_seconds: 22,  name: 'Mike Johnson',  message: 'Just joined, can\'t wait!' },
@@ -334,6 +340,24 @@ const mock = {
   // ── Notifications ───────────────────────────────────────────────────────────
   listNotifications(webinarId) {
     return getStore().notifications.filter(n => n.webinar_id === webinarId)
+  },
+
+  // ── Attendee range ───────────────────────────────────────────────────────────
+  getAttendeeRange(webinarId) {
+    const r = (getStore().attendee_ranges || []).find(r => r.webinar_id === webinarId)
+    return r || { min_count: 50, max_count: 200 }
+  },
+
+  setAttendeeRange(webinarId, min_count, max_count) {
+    mutate(store => {
+      if (!store.attendee_ranges) store.attendee_ranges = []
+      const idx = store.attendee_ranges.findIndex(r => r.webinar_id === webinarId)
+      if (idx >= 0) {
+        store.attendee_ranges[idx] = { ...store.attendee_ranges[idx], min_count, max_count }
+      } else {
+        store.attendee_ranges.push({ id: uuid(), webinar_id: webinarId, min_count, max_count })
+      }
+    })
   },
 
   // ── Chat messages ────────────────────────────────────────────────────────────
