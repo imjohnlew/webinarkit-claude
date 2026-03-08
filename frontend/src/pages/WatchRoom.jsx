@@ -157,7 +157,7 @@ export default function WatchRoom() {
   // ── Waiting room gate (computed after all hooks) ───────────────────────────
   // In prod: purely time-based. In dev: Force Start button overrides.
   const sessionInfo = mock.getNextSessionFromNow(webinarId)
-  const needsWait   = sessionInfo && !sessionInfo.is_live && !forceLive
+  const needsWait   = sessionInfo && !sessionInfo.is_live && !forceLive && !webinar?.instant_watch_enabled
   const devMode     = import.meta.env.DEV
 
   // Conditional return is safe here — all hooks are already declared above.
