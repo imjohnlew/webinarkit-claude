@@ -83,6 +83,7 @@ const SEED = {
     { id: 'ar-3', webinar_id: 'webinar-3', min_count:  50, max_count: 130 },
     { id: 'ar-4', webinar_id: 'webinar-4', min_count:  30, max_count:  90 },
   ],
+  inbox_messages: [],
   chats: [
     { id: 'cm-1',  webinar_id: 'webinar-1', time_seconds: 8,   name: 'Sarah K.',      message: 'So excited for this! 🎉' },
     { id: 'cm-2',  webinar_id: 'webinar-1', time_seconds: 22,  name: 'Mike Johnson',  message: 'Just joined, can\'t wait!' },
@@ -245,6 +246,50 @@ const mock = {
     })
   },
 
+  // Returns the nearest session window (past or future) for waiting-room logic.
+  // { starts_at, is_live } — is_live=true means session has started but not ended yet.
+  // Returns null when there is no schedule (→ show live room immediately).
+  getNextSessionFromNow(webinarId) {
+    const { schedules, webinars } = getStore()
+    const webinar  = webinars.find(w => w.id === webinarId)
+    const rules    = schedules.filter(s => s.webinar_id === webinarId)
+    if (!rules.length) return null
+
+    const durationMs = (webinar?.duration_minutes || 60) * 60 * 1000
+    const now        = Date.now()
+    const DAY        = { Day: null, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 }
+
+    let earliest = null
+
+    rules.forEach(rule => {
+      if (rule.type === 'On') {
+        const t = new Date(`${rule.day}T${toHH(rule.time, rule.period)}:00`).getTime()
+        if (t + durationMs > now && (earliest === null || t < earliest)) earliest = t
+      } else {
+        const targetDow = DAY[rule.day]
+        // Scan 7 days back → 60 days ahead to find sessions not yet ended
+        let d = new Date(now - 7 * 86400000)
+        for (let i = 0; i < 67; i++) {
+          const dow = d.getDay() === 0 ? 7 : d.getDay()
+          if (targetDow === null || dow === targetDow) {
+            const [hStr, mStr] = toHH(rule.time, rule.period).split(':')
+            const check = new Date(d)
+            check.setHours(parseInt(hStr), parseInt(mStr), 0, 0)
+            const t = check.getTime()
+            if (t + durationMs > now && (earliest === null || t < earliest)) earliest = t
+          }
+          d = new Date(d.getTime() + 86400000)
+        }
+      }
+    })
+
+    if (earliest === null) return null
+    return {
+      starts_at: new Date(earliest).toISOString(),
+      is_live:   earliest <= now,   // session has started but not yet ended
+    }
+  },
+
   getUpcoming(webinarId, limit = 5) {
     const { schedules } = getStore()
     const rules = schedules.filter(s => s.webinar_id === webinarId)
@@ -374,6 +419,42 @@ const mock = {
         ...messages.map(m => ({ ...m, webinar_id: webinarId })),
       ]
     })
+  },
+
+  // ── Inbox (attendee messages → admin only) ──────────────────────────────────
+  pushInboxMessage(webinarId, sender, message) {
+    const item = {
+      id: uuid(),
+      webinar_id: webinarId,
+      sender,
+      message,
+      sent_at: new Date().toISOString(),
+      read: false,
+    }
+    mutate(store => {
+      if (!store.inbox_messages) store.inbox_messages = []
+      store.inbox_messages.push(item)
+    })
+    return item
+  },
+
+  listInboxMessages() {
+    return (getStore().inbox_messages || [])
+      .sort((a, b) => a.sent_at.localeCompare(b.sent_at))
+  },
+
+  markAllInboxRead() {
+    mutate(store => {
+      ;(store.inbox_messages || []).forEach(m => { m.read = true })
+    })
+  },
+
+  clearInboxMessages() {
+    mutate(store => { store.inbox_messages = [] })
+  },
+
+  getInboxUnreadCount() {
+    return (getStore().inbox_messages || []).filter(m => !m.read).length
   },
 
   upsertNotification(webinarId, type, data) {

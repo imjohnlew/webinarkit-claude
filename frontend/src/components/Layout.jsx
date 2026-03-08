@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, Outlet } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -15,8 +15,10 @@ import {
   Zap,
   MessageSquare,
   Users,
+  Inbox,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import mock from '../api/mockStore'
 
 const navItems = [
   {
@@ -37,7 +39,7 @@ const navItems = [
   },
 ]
 
-function NavItem({ item, collapsed }) {
+function NavItem({ item, collapsed, badge }) {
   const Icon = item.icon
   return (
     <NavLink
@@ -56,8 +58,15 @@ function NavItem({ item, collapsed }) {
       {({ isActive }) => (
         <>
           <Icon className={clsx('w-5 h-5 shrink-0', isActive && 'text-white')} />
-          {!collapsed && <span>{item.label}</span>}
-          {!collapsed && isActive && (
+          {!collapsed && <span className="flex-1">{item.label}</span>}
+          {/* Unread badge */}
+          {!collapsed && badge != null && badge > 0 && (
+            <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center">
+              {badge}
+            </span>
+          )}
+          {/* Active dot — only when no badge */}
+          {!collapsed && isActive && (badge == null || badge === 0) && (
             <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-400" />
           )}
         </>
@@ -67,9 +76,16 @@ function NavItem({ item, collapsed }) {
 }
 
 export function Layout() {
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed,    setCollapsed]    = useState(false)
+  const [mobileOpen,   setMobileOpen]   = useState(false)
+  const [inboxUnread,  setInboxUnread]  = useState(() => mock.getInboxUnreadCount())
   const navigate = useNavigate()
+
+  // Poll for new inbox messages every 2s to drive sidebar badge
+  useEffect(() => {
+    const id = setInterval(() => setInboxUnread(mock.getInboxUnreadCount()), 2000)
+    return () => clearInterval(id)
+  }, [])
 
   const user = JSON.parse(localStorage.getItem('auth_user') || '{"name":"User","email":"user@example.com"}')
 
@@ -146,20 +162,16 @@ export function Layout() {
               <p className="px-3 text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 Live Room
               </p>
-              <NavItem
-                item={{ label: 'Replay Chat', icon: MessageSquare, to: '/live-room?tab=chat' }}
-                collapsed={collapsed}
-              />
-              <NavItem
-                item={{ label: 'Attendee Count', icon: Users, to: '/live-room?tab=attendees' }}
-                collapsed={collapsed}
-              />
+              <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
+              <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/live-room?tab=inbox' }}     collapsed={collapsed} badge={inboxUnread} />
             </div>
           )}
           {collapsed && (
             <>
-              <NavItem item={{ label: 'Replay Chat', icon: MessageSquare, to: '/live-room?tab=chat' }} collapsed={collapsed} />
-              <NavItem item={{ label: 'Attendee Count', icon: Users, to: '/live-room?tab=attendees' }} collapsed={collapsed} />
+              <NavItem item={{ label: 'Replay Chat',    icon: MessageSquare, to: '/live-room?tab=chat' }}      collapsed={collapsed} />
+              <NavItem item={{ label: 'Attendee Count', icon: Users,         to: '/live-room?tab=attendees' }} collapsed={collapsed} />
+              <NavItem item={{ label: 'Live Inbox',     icon: Inbox,         to: '/live-room?tab=inbox' }}     collapsed={collapsed} badge={inboxUnread} />
             </>
           )}
 

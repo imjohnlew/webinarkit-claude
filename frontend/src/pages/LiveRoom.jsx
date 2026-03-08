@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   MessageSquare, Users, Upload, Plus, Trash2, Save,
   ExternalLink, ChevronDown, AlertCircle, CheckCircle2,
+  Inbox, Circle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import mock from '../api/mockStore'
 
 const TABS = [
-  { id: 'chat',      label: 'Replay Chat',     icon: MessageSquare },
-  { id: 'attendees', label: 'Attendee Count',   icon: Users },
+  { id: 'chat',      label: 'Replay Chat',    icon: MessageSquare },
+  { id: 'attendees', label: 'Attendee Count',  icon: Users },
+  { id: 'inbox',     label: 'Live Inbox',      icon: Inbox },
 ]
 
 // ── Chat tab ──────────────────────────────────────────────────────────────────
@@ -219,7 +221,6 @@ function AttendeeTab({ webinar }) {
           </div>
         </div>
 
-        {/* Preview */}
         <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3">
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Users className="w-4 h-4 text-brand-500" />
@@ -249,6 +250,153 @@ function AttendeeTab({ webinar }) {
   )
 }
 
+// ── Live Inbox tab ────────────────────────────────────────────────────────────
+function InboxTab({ messages, onClear, onRead }) {
+  const bottomRef = useRef(null)
+  const prevLen   = useRef(messages.length)
+
+  const webinars      = mock.listWebinars()
+  const getWebinarName = (id) => webinars.find(w => w.id === id)?.name || id
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (messages.length > prevLen.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevLen.current = messages.length
+  }, [messages])
+
+  // Mark all read as soon as this tab is visible
+  useEffect(() => {
+    onRead()
+  }, [messages.length])   // re-fires whenever count changes
+
+  const fmtTime = (iso) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  // Group messages so we can show webinar dividers when they change
+  const grouped = messages.reduce((acc, msg, i) => {
+    const prev = messages[i - 1]
+    if (!prev || prev.webinar_id !== msg.webinar_id) {
+      acc.push({ type: 'divider', label: getWebinarName(msg.webinar_id) })
+    }
+    acc.push({ type: 'msg', msg })
+    return acc
+  }, [])
+
+  return (
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 shrink-0">
+        <div>
+          <h3 className="font-semibold text-slate-800">Live Inbox</h3>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Real attendee messages — private to admin only, never shown to other attendees.
+          </p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={onClear}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-all"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Clear all
+          </button>
+        )}
+      </div>
+
+      {/* Messages area */}
+      <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50/50">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
+            <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
+              <Inbox className="w-7 h-7 text-slate-300" />
+            </div>
+            <div>
+              <p className="font-medium text-slate-500 text-sm">No messages yet</p>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                When attendees send a chat message in the watch room,<br />
+                it will appear here privately — only you can see it.
+              </p>
+            </div>
+            <Link
+              to="/watch/webinar-1"
+              target="_blank"
+              className="flex items-center gap-1.5 text-xs text-brand-600 hover:underline mt-1"
+            >
+              <ExternalLink className="w-3 h-3" /> Open watch room to test
+            </Link>
+          </div>
+        ) : (
+          <div className="p-4 space-y-1.5">
+            {grouped.map((item, i) =>
+              item.type === 'divider' ? (
+                <div key={`div-${i}`} className="flex items-center gap-2 py-2">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 shrink-0">
+                    {item.label}
+                  </span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+              ) : (
+                <div
+                  key={item.msg.id}
+                  className={clsx(
+                    'flex items-start gap-3 p-3 rounded-xl border transition-all',
+                    item.msg.read
+                      ? 'bg-white border-slate-100'
+                      : 'bg-blue-50 border-blue-100'
+                  )}
+                >
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                    {item.msg.sender.slice(0, 2).toUpperCase()}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[12px] font-semibold text-slate-700">
+                        {item.msg.sender}
+                      </span>
+                      {!item.msg.read && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">
+                          New
+                        </span>
+                      )}
+                      <span className="text-[11px] text-slate-400 ml-auto shrink-0">
+                        {fmtTime(item.msg.sent_at)}
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-slate-600 leading-snug break-words">
+                      {item.msg.message}
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Live indicator */}
+      <div className="flex items-center gap-2 mt-3 shrink-0">
+        <Circle
+          className="w-2 h-2 fill-green-400 text-green-400 shrink-0"
+          style={{ animation: 'liveInboxPulse 2s ease-in-out infinite' }}
+        />
+        <span className="text-xs text-slate-400">Listening for new messages…</span>
+        <style>{`
+          @keyframes liveInboxPulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.2; }
+          }
+        `}</style>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LiveRoom() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -258,8 +406,33 @@ export default function LiveRoom() {
   const [selectedWebinarId, setSelectedWebinarId] = useState(allWebinars[0]?.id || '')
   const webinar = allWebinars.find(w => w.id === selectedWebinarId) || allWebinars[0]
 
+  // Inbox state — polled here so tab badge stays live
+  const [inboxMessages, setInboxMessages] = useState(() => mock.listInboxMessages())
+  const [inboxUnread,   setInboxUnread]   = useState(() => mock.getInboxUnreadCount())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setInboxMessages(mock.listInboxMessages())
+      setInboxUnread(mock.getInboxUnreadCount())
+    }, 1500)
+    return () => clearInterval(id)
+  }, [])
+
   function setTab(id) {
     setSearchParams({ tab: id }, { replace: true })
+  }
+
+  function handleInboxRead() {
+    mock.markAllInboxRead()
+    // Update local copies to mark read
+    setInboxMessages(prev => prev.map(m => ({ ...m, read: true })))
+    setInboxUnread(0)
+  }
+
+  function handleInboxClear() {
+    mock.clearInboxMessages()
+    setInboxMessages([])
+    setInboxUnread(0)
   }
 
   return (
@@ -269,55 +442,70 @@ export default function LiveRoom() {
         <p className="text-slate-500 mt-1 text-sm">Configure the watch room experience per webinar.</p>
       </div>
 
-      {/* Webinar selector */}
-      <div className="mb-6 flex items-center gap-3">
-        <label className="text-sm font-medium text-slate-600 shrink-0">Webinar:</label>
-        <div className="relative">
-          <select
-            value={selectedWebinarId}
-            onChange={e => setSelectedWebinarId(e.target.value)}
-            className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-400 shadow-sm"
-          >
-            {allWebinars.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
-          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      {/* Webinar selector — hidden on inbox tab (inbox shows all webinars) */}
+      {activeTab !== 'inbox' && (
+        <div className="mb-6 flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-600 shrink-0">Webinar:</label>
+          <div className="relative">
+            <select
+              value={selectedWebinarId}
+              onChange={e => setSelectedWebinarId(e.target.value)}
+              className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-400 shadow-sm"
+            >
+              {allWebinars.map(w => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {webinar && (
+            <Link to={`/watch/${webinar.id}`} target="_blank"
+              className="flex items-center gap-1 text-xs text-brand-600 hover:underline">
+              <ExternalLink className="w-3 h-3" /> Open watch room
+            </Link>
+          )}
         </div>
-        {webinar && (
-          <Link to={`/watch/${webinar.id}`} target="_blank"
-            className="flex items-center gap-1 text-xs text-brand-600 hover:underline">
-            <ExternalLink className="w-3 h-3" /> Open watch room
-          </Link>
-        )}
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-slate-200 mb-6">
         <div className="flex gap-1">
           {TABS.map(tab => {
             const Icon = tab.icon
+            const isInbox = tab.id === 'inbox'
             return (
-              <button key={tab.id} onClick={() => setTab(tab.id)}
+              <button
+                key={tab.id}
+                onClick={() => setTab(tab.id)}
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px',
                   activeTab === tab.id
                     ? 'border-brand-500 text-brand-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
-                )}>
+                )}
+              >
                 <Icon className="w-4 h-4" />
                 {tab.label}
+                {isInbox && inboxUnread > 0 && (
+                  <span className="ml-0.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    {inboxUnread}
+                  </span>
+                )}
               </button>
             )
           })}
         </div>
       </div>
 
-      {webinar && (
-        <>
-          {activeTab === 'chat'      && <ChatTab     key={webinar.id} webinar={webinar} />}
-          {activeTab === 'attendees' && <AttendeeTab  key={webinar.id} webinar={webinar} />}
-        </>
+      {/* Tab content */}
+      {webinar && activeTab === 'chat'      && <ChatTab     key={webinar.id} webinar={webinar} />}
+      {webinar && activeTab === 'attendees' && <AttendeeTab  key={webinar.id} webinar={webinar} />}
+      {           activeTab === 'inbox'     && (
+        <InboxTab
+          messages={inboxMessages}
+          onRead={handleInboxRead}
+          onClear={handleInboxClear}
+        />
       )}
     </div>
   )

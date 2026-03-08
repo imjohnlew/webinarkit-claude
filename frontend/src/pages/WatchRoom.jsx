@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import WaitingRoom from './WaitingRoom'
 import {
   MicOff, VideoOff, Users, MessageSquare, HelpCircle,
   Hand, Smile, MoreHorizontal, PhoneOff, Play, Pause,
@@ -101,6 +102,10 @@ export default function WatchRoom() {
   const videoRef   = useRef(null)
   const chatBottom = useRef(null)
 
+  // ── IMPORTANT: ALL hooks must be declared before any conditional return ────
+  // forceLive toggles the waiting room gate (dev-only bypass)
+  const [forceLive, setForceLive] = useState(false)
+
   const webinar      = mock.getWebinar(webinarId)
   const allMessages  = mock.listChatMessages(webinarId)
   const participants = useParticipantCount(webinarId)
@@ -149,6 +154,26 @@ export default function WatchRoom() {
     chatBottom.current?.scrollIntoView({ behavior: 'smooth' })
   }, [visibleMsgs, userMsgs])
 
+  // ── Waiting room gate (computed after all hooks) ───────────────────────────
+  // In prod: purely time-based. In dev: Force Start button overrides.
+  const sessionInfo = mock.getNextSessionFromNow(webinarId)
+  const needsWait   = sessionInfo && !sessionInfo.is_live && !forceLive
+  const devMode     = import.meta.env.DEV
+
+  // Conditional return is safe here — all hooks are already declared above.
+  if (needsWait) {
+    return (
+      <WaitingRoom
+        webinar={webinar}
+        startsAt={sessionInfo.starts_at}
+        participants={participants}
+        onLive={() => setForceLive(true)}
+        devMode={devMode}
+      />
+    )
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const togglePlay = () => {
     const v = videoRef.current
     if (!v) return
@@ -178,7 +203,11 @@ export default function WatchRoom() {
   const sendMsg = (e) => {
     e.preventDefault()
     if (!userMsg.trim()) return
-    setUserMsgs(prev => [...prev, { id: `u-${Date.now()}`, name: 'You', message: userMsg.trim(), isYou: true }])
+    const msg = userMsg.trim()
+    // Save to admin-only inbox — NOT visible to other attendees
+    mock.pushInboxMessage(webinarId, 'Attendee', msg)
+    // Show privately to sender only
+    setUserMsgs(prev => [...prev, { id: `u-${Date.now()}`, name: 'You', message: msg, isYou: true }])
     setUserMsg('')
   }
 
