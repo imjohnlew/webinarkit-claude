@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import {
   MessageSquare, Users, Upload, Plus, Trash2, Save,
   ExternalLink, ChevronDown, AlertCircle, CheckCircle2,
-  Inbox, Circle,
+  Inbox, Circle, Zap,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import mock from '../api/mockStore'
@@ -11,6 +11,7 @@ import mock from '../api/mockStore'
 const TABS = [
   { id: 'chat',      label: 'Replay Chat',    icon: MessageSquare },
   { id: 'attendees', label: 'Attendee Count',  icon: Users },
+  { id: 'ctas',      label: 'Timed CTAs',      icon: Zap },
   { id: 'inbox',     label: 'Live Inbox',      icon: Inbox },
 ]
 
@@ -397,6 +398,152 @@ function InboxTab({ messages, onClear, onRead }) {
   )
 }
 
+// ── Timed CTAs tab ────────────────────────────────────────────────────────────
+function CTATab({ webinar }) {
+  const [ctas, setCtas]     = useState(() => mock.listCTAs(webinar.id))
+  const [addOpen, setAddOpen] = useState(false)
+  const [form, setForm]     = useState({
+    trigger_seconds: 60, title: '', description: '',
+    button_text: 'Claim Now →', button_url: '', accent: '#0E72ED',
+  })
+
+  const fmtSecs = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
+  function handleAdd(e) {
+    e.preventDefault()
+    if (!form.title.trim()) return
+    const item = mock.createCTA(webinar.id, { ...form, trigger_seconds: parseInt(form.trigger_seconds) || 60 })
+    setCtas(prev => [...prev, item].sort((a, b) => a.trigger_seconds - b.trigger_seconds))
+    setForm({ trigger_seconds: 60, title: '', description: '', button_text: 'Claim Now →', button_url: '', accent: '#0E72ED' })
+    setAddOpen(false)
+  }
+
+  function handleDelete(id) {
+    mock.deleteCTA(id)
+    setCtas(prev => prev.filter(c => c.id !== id))
+  }
+
+  const field = (label, children) => (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{label}</label>
+      {children}
+    </div>
+  )
+  const inp = (props) => (
+    <input {...props} className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+  )
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-slate-800">Timed CTAs</h3>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Offer cards slide in for all attendees at a specific video timestamp.{' '}
+            <Link to={`/watch/${webinar.id}`} target="_blank" className="text-brand-600 hover:underline">
+              Preview room →
+            </Link>
+          </p>
+        </div>
+        <button
+          onClick={() => setAddOpen(v => !v)}
+          className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Add CTA
+        </button>
+      </div>
+
+      {/* Add form */}
+      {addOpen && (
+        <form onSubmit={handleAdd} className="border border-brand-200 bg-brand-50/40 rounded-xl p-5 space-y-4">
+          <h4 className="text-sm font-semibold text-slate-700">New Timed CTA</h4>
+          <div className="grid grid-cols-2 gap-4">
+            {field('Trigger (seconds)',
+              inp({ type: 'number', min: 1, value: form.trigger_seconds,
+                onChange: e => setForm(f => ({ ...f, trigger_seconds: e.target.value })) })
+            )}
+            {field('Accent colour',
+              <input type="color" value={form.accent}
+                onChange={e => setForm(f => ({ ...f, accent: e.target.value }))}
+                className="w-full h-9 border border-slate-200 bg-white rounded-lg cursor-pointer" />
+            )}
+          </div>
+          {field('Title',
+            inp({ required: true, value: form.title, placeholder: '🔥 Special Offer — Ends Tonight',
+              onChange: e => setForm(f => ({ ...f, title: e.target.value })) })
+          )}
+          {field('Description (optional)',
+            inp({ value: form.description, placeholder: 'Join and start closing more deals in 30 days.',
+              onChange: e => setForm(f => ({ ...f, description: e.target.value })) })
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            {field('Button text',
+              inp({ required: true, value: form.button_text, placeholder: 'Claim Now →',
+                onChange: e => setForm(f => ({ ...f, button_text: e.target.value })) })
+            )}
+            {field('Button URL',
+              inp({ value: form.button_url, placeholder: 'https://…',
+                onChange: e => setForm(f => ({ ...f, button_url: e.target.value })) })
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setAddOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg transition-colors">
+              Cancel
+            </button>
+            <button type="submit"
+              className="px-4 py-2 text-sm text-white bg-brand-600 hover:bg-brand-700 font-medium rounded-lg transition-colors">
+              Add CTA
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* CTA list */}
+      {ctas.length === 0 ? (
+        <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
+          <Zap className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-500">No CTAs yet</p>
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            Add a timed offer card that slides in for all attendees at a specific video timestamp.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {ctas.map(cta => (
+            <div key={cta.id}
+              className="flex items-center gap-4 border border-slate-200 bg-white rounded-xl p-4"
+            >
+              {/* Time badge */}
+              <div className="shrink-0 px-2.5 py-1.5 rounded-lg text-white text-[11px] font-bold tabular-nums"
+                style={{ background: cta.accent || '#0E72ED' }}>
+                {fmtSecs(cta.trigger_seconds)}
+              </div>
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{cta.title}</p>
+                {cta.description && (
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{cta.description}</p>
+                )}
+                <p className="text-xs font-medium mt-0.5 truncate" style={{ color: cta.accent || '#0E72ED' }}>
+                  {cta.button_text}
+                </p>
+              </div>
+              {/* Delete */}
+              <button onClick={() => handleDelete(cta.id)}
+                className="shrink-0 text-slate-300 hover:text-red-500 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LiveRoom() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -500,6 +647,7 @@ export default function LiveRoom() {
       {/* Tab content */}
       {webinar && activeTab === 'chat'      && <ChatTab     key={webinar.id} webinar={webinar} />}
       {webinar && activeTab === 'attendees' && <AttendeeTab  key={webinar.id} webinar={webinar} />}
+      {webinar && activeTab === 'ctas'      && <CTATab       key={webinar.id} webinar={webinar} />}
       {           activeTab === 'inbox'     && (
         <InboxTab
           messages={inboxMessages}

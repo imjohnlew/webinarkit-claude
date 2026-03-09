@@ -116,6 +116,14 @@ export default function WatchRoom() {
 
   const webinar      = mock.getWebinar(webinarId)
   const allMessages  = mock.listChatMessages(webinarId)
+  const ctaList      = mock.listCTAs(webinarId)
+
+  // Compute session state early so we can initialise the elapsed-time ref correctly
+  const sessionInfo  = mock.getNextSessionFromNow(webinarId)
+  const seekOffset   = sessionInfo?.is_live
+    ? Math.max(0, Math.floor((Date.now() - new Date(sessionInfo.starts_at).getTime()) / 1000))
+    : 0
+
   const participants = useParticipantCount(webinarId)
 
   const [currentTime, setCurrentTime] = useState(0)
@@ -130,7 +138,8 @@ export default function WatchRoom() {
   const [elapsedStr,  setElapsedStr]  = useState('00:00:00')
   const [reactions,     setReactions]     = useState([])
   const [adminReplies,  setAdminReplies]  = useState([])
-  const elapsedSecs = useRef(0)
+  const [dismissedCTAs, setDismissedCTAs] = useState(() => new Set())
+  const elapsedSecs = useRef(seekOffset)   // start from live offset if joining mid-session
 
   // Session elapsed timer
   useEffect(() => {
@@ -175,8 +184,7 @@ export default function WatchRoom() {
 
   // ── Waiting room gate (computed after all hooks) ───────────────────────────
   // In prod: purely time-based. In dev: Force Start button overrides.
-  const sessionInfo = mock.getNextSessionFromNow(webinarId)
-  const needsWait   = sessionInfo && !sessionInfo.is_live && !forceLive && !webinar?.instant_watch_enabled
+  const needsWait = sessionInfo && !sessionInfo.is_live && !forceLive && !webinar?.instant_watch_enabled
   const devMode     = import.meta.env.DEV
 
   // Conditional return is safe here — all hooks are already declared above.
@@ -237,6 +245,11 @@ export default function WatchRoom() {
     setReactions(r => [...r, { id, emoji, x: 20 + Math.random() * 60 }])
     setTimeout(() => setReactions(r => r.filter(x => x.id !== id)), 3000)
   }
+
+  // Most-recently-triggered CTA that hasn't been dismissed
+  const activeCTA = ctaList
+    .filter(c => currentTime >= c.trigger_seconds && !dismissedCTAs.has(c.id))
+    .reduce((best, c) => (!best || c.trigger_seconds > best.trigger_seconds) ? c : best, null)
 
   const videoSrc = webinar?.video_url ||
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
@@ -312,6 +325,12 @@ export default function WatchRoom() {
             src={videoSrc}
             className="w-full h-full object-contain"
             onTimeUpdate={e => setCurrentTime(e.target.currentTime)}
+            onCanPlay={(e) => {
+              // Auto-seek to live position when attendee joins mid-session
+              if (seekOffset > 0 && e.target.currentTime < seekOffset - 2) {
+                e.target.currentTime = Math.min(seekOffset, (e.target.duration || Infinity) - 1)
+              }
+            }}
             onLoadedMetadata={() => {}}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
@@ -358,6 +377,47 @@ export default function WatchRoom() {
               {r.emoji}
             </div>
           ))}
+
+          {/* ── Timed CTA offer card ─────────────────────────────────────── */}
+          {activeCTA && (
+            <div
+              className="absolute bottom-20 right-4 w-72 rounded-xl shadow-2xl overflow-hidden z-30"
+              style={{ animation: 'slideInRight 0.4s cubic-bezier(0.22,1,0.36,1)' }}
+            >
+              <div
+                className="bg-white"
+                style={{ borderLeft: `4px solid ${activeCTA.accent || '#0E72ED'}` }}
+              >
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h4 className="text-[14px] font-bold text-[#1A1A1A] leading-tight">
+                      {activeCTA.title}
+                    </h4>
+                    <button
+                      onClick={() => setDismissedCTAs(s => new Set([...s, activeCTA.id]))}
+                      className="shrink-0 text-[#BBBBBB] hover:text-[#555] transition-colors mt-0.5"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {activeCTA.description && (
+                    <p className="text-[12px] text-[#666] mb-3 leading-relaxed">
+                      {activeCTA.description}
+                    </p>
+                  )}
+                  <a
+                    href={activeCTA.button_url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-white text-[13px] font-semibold py-2.5 px-4 rounded-lg transition-opacity hover:opacity-90 active:scale-[0.98]"
+                    style={{ background: activeCTA.accent || '#0E72ED' }}
+                  >
+                    {activeCTA.button_text || 'Claim Now'}
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── CHAT PANEL ──────────────────────────────────────────────────── */}
@@ -519,6 +579,10 @@ export default function WatchRoom() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.3; }
+        }
+        @keyframes slideInRight {
+          from { transform: translateX(110%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
         }
       `}</style>
     </div>

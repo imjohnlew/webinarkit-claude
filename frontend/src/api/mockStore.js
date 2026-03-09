@@ -85,6 +85,28 @@ const SEED = {
   ],
   inbox_messages: [],
   admin_replies: [],
+  ctas: [
+    {
+      id: 'cta-1',
+      webinar_id: 'webinar-1',
+      trigger_seconds: 30,
+      title: '🔥 Special Offer — Ends Tonight',
+      description: 'Join the Cold Outreach Masterclass and start closing more deals in 30 days.',
+      button_text: 'Claim 50% Off →',
+      button_url: 'https://webinarkit.com',
+      accent: '#0E72ED',
+    },
+    {
+      id: 'cta-2',
+      webinar_id: 'webinar-1',
+      trigger_seconds: 90,
+      title: '🎁 Bonus Bundle — Today Only',
+      description: 'Get the full template vault + personal coaching call included.',
+      button_text: 'Get the Bonus →',
+      button_url: 'https://webinarkit.com',
+      accent: '#7C3AED',
+    },
+  ],
   chats: [
     { id: 'cm-1',  webinar_id: 'webinar-1', time_seconds: 8,   name: 'Sarah K.',      message: 'So excited for this! 🎉' },
     { id: 'cm-2',  webinar_id: 'webinar-1', time_seconds: 22,  name: 'Mike Johnson',  message: 'Just joined, can\'t wait!' },
@@ -487,6 +509,36 @@ const mock = {
     const all = getStore().admin_replies || []
     return (webinarId ? all.filter(r => r.webinar_id === webinarId) : all)
       .sort((a, b) => a.sent_at.localeCompare(b.sent_at))
+  },
+
+  // ── CTAs (timed offer cards) ─────────────────────────────────────────────────
+  listCTAs(webinarId) {
+    return (getStore().ctas || [])
+      .filter(c => c.webinar_id === webinarId)
+      .sort((a, b) => a.trigger_seconds - b.trigger_seconds)
+  },
+
+  createCTA(webinarId, data) {
+    const item = {
+      id: uuid(),
+      webinar_id: webinarId,
+      trigger_seconds: 60,
+      title: '',
+      description: '',
+      button_text: 'Claim Now',
+      button_url: '#',
+      accent: '#0E72ED',
+      ...data,
+    }
+    mutate(store => {
+      if (!store.ctas) store.ctas = []
+      store.ctas.push(item)
+    })
+    return item
+  },
+
+  deleteCTA(id) {
+    mutate(store => { store.ctas = (store.ctas || []).filter(c => c.id !== id) })
   },
 
   upsertNotification(webinarId, type, data) {
