@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import mock from '../api/mockStore'
+import { useWatchChannel } from '../lib/watchChannel'
+import supabase from '../lib/supabase'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -141,6 +143,20 @@ export default function WatchRoom() {
   const [dismissedCTAs, setDismissedCTAs] = useState(() => new Set())
   const elapsedSecs = useRef(seekOffset)   // start from live offset if joining mid-session
 
+  // ── Supabase Realtime channel ──────────────────────────────────────────────
+  // presenceCount — real attendee count via Presence (null → fall back to mock)
+  // broadcastInboxMessage — notifies admin inbox instantly instead of waiting for poll
+  // onAdminReply — receives admin replies via Broadcast instead of 2 s polling
+  const { presenceCount, broadcastInboxMessage } = useWatchChannel(webinarId, {
+    presenceName: 'Attendee',
+    onAdminReply: (payload) => {
+      // Only surface replies for messages this attendee sent
+      if (userMsgIdsRef.current.includes(payload.inbox_message_id)) {
+        setAdminReplies(prev => [...prev, payload])
+      }
+    },
+  })
+
   // Session elapsed timer
   useEffect(() => {
     const id = setInterval(() => {
@@ -172,8 +188,11 @@ export default function WatchRoom() {
     chatBottom.current?.scrollIntoView({ behavior: 'smooth' })
   }, [visibleMsgs, userMsgs, adminReplies])
 
-  // Poll for admin replies to messages this attendee sent
+  // Poll for admin replies — ONLY when Supabase is not configured.
+  // When Supabase is present the channel's onAdminReply callback handles this
+  // instantly via Broadcast, eliminating 2 000 concurrent polling requests.
   useEffect(() => {
+    if (supabase) return  // channel handles real-time delivery
     const id = setInterval(() => {
       if (userMsgIdsRef.current.length) {
         setAdminReplies(mock.listAdminRepliesForMessages(userMsgIdsRef.current))
@@ -233,11 +252,14 @@ export default function WatchRoom() {
     const msg = userMsg.trim()
     // Save to admin-only inbox — NOT visible to other attendees
     const stored = mock.pushInboxMessage(webinarId, 'Attendee', msg)
-    // Track the inbox ID so we can poll for admin replies
+    // Track the inbox ID so we can correlate admin replies
     userMsgIdsRef.current = [...userMsgIdsRef.current, stored.id]
     // Show privately to sender only, tagged with inboxId for reply correlation
     setUserMsgs(prev => [...prev, { id: `u-${Date.now()}`, name: 'You', message: msg, isYou: true, inboxId: stored.id }])
     setUserMsg('')
+    // Also broadcast via Supabase Realtime so AdminInbox receives instantly
+    // (no-op when Supabase is not configured — admin sees it on next poll)
+    broadcastInboxMessage({ id: stored.id, webinar_id: webinarId, sender: 'Attendee', message: msg, sent_at: stored.sent_at })
   }
 
   const sendReaction = (emoji) => {
@@ -521,7 +543,7 @@ export default function WatchRoom() {
         <div className="flex items-center gap-0.5">
           <ToolBtn
             icon={Users}
-            label={`${participants}`}
+            label={`${presenceCount ?? participants}`}
             onClick={() => {}}
           />
           <ToolBtn

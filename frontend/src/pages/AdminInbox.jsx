@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Inbox, Circle, Trash2, Send, Shield, ChevronDown, ExternalLink, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import mock from '../api/mockStore'
+import { sendAdminReply } from '../lib/watchChannel'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtTime(iso) {
@@ -144,7 +145,11 @@ export default function AdminInbox() {
     e.preventDefault()
     const text = (drafts[msgId] || '').trim()
     if (!text) return
-    mock.pushAdminReply(msgId, webinarId, text, senderName)
+    // Store reply in mockStore (source of truth for polling fallback)
+    const reply = mock.pushAdminReply(msgId, webinarId, text, senderName)
+    // Also broadcast via Supabase Realtime so attendees receive it instantly
+    // (no-op when Supabase is not configured — attendee sees it on next poll)
+    sendAdminReply(webinarId, reply)
     setDrafts(d => ({ ...d, [msgId]: '' }))
     setReplies(mock.listAdminReplies())
   }
